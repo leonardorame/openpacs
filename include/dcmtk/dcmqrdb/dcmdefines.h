@@ -1,0 +1,12 @@
+#define DCM_PatientsName                         DcmTagKey(0x0010, 0x0010)
+#define DCM_PatientsBirthDate                    DcmTagKey(0x0010, 0x0030)
+#define DCM_PatientsBirthTime                    DcmTagKey(0x0010, 0x0032)
+#define DCM_PatientsSex                          DcmTagKey(0x0010, 0x0040)
+#define DCM_PatientsBirthName                    DcmTagKey(0x0010, 0x1005)
+#define DCM_PatientsAge                          DcmTagKey(0x0010, 0x1010)
+#define DCM_PatientsSize                         DcmTagKey(0x0010, 0x1020)
+#define DCM_PatientsWeight                       DcmTagKey(0x0010, 0x1030)
+#define DCM_PatientsAddress                      DcmTagKey(0x0010, 0x1040)
+#define DCM_ReferringPhysiciansName              DcmTagKey(0x0008, 0x0090)
+#define DCM_PerformingPhysiciansName             DcmTagKey(0x0008, 0x1050)
+
