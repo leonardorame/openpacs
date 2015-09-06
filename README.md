@@ -1,6 +1,11 @@
 # OpenPACS
 
-DCMTK based PACS with PostgreSql backend
+This project started as a modified DCMTK's dcmqrscp
+program where the index file based database
+was replaced to a PostgreSql one.
+
+Later it was added the JPEG2000 compression and decompression
+codec thanks to *fmjpeg2koj*.
 
 How to build
 ------------
