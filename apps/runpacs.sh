@@ -1,6 +1,6 @@
 #!/bin/sh
 clear
-export DCMDICTPATH="../../dcmdata/data/dicom.dic"
+export DCMDICTPATH="../dcmtk-3.6.1_20150629/dcmdata/data/dicom.dic"
 echo "   =============================="
 echo "   ===[ Starting OpenPACS ]==="
 echo ""
