@@ -9,6 +9,7 @@
 *.exe
 *.out
 *.app
+**/bin/*
 
 # CMake
 **/CMakeCache.txt
