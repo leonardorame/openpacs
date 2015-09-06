@@ -2,7 +2,8 @@
 
 DCMTK based PACS with PostgreSql backend
 
-# How to build
+How to build
+------------
 
 First build dcmtk, then openpacs:
 
