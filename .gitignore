@@ -16,5 +16,6 @@
 **/CMakeScripts
 **/Makefile
 **/Makefile.*
+**/*.cmake
 **/cmake_install.cmake
 **/install_manifest.txt
