@@ -2,11 +2,10 @@
 clear
 export DCMDICTPATH="../../dcmdata/data/dicom.dic"
 echo "   =============================="
-echo "   ===[ Starting G-Pacs core ]==="
+echo "   ===[ Starting OpenPACS ]==="
 echo ""
 echo "   `date`"
 echo "   =============================="
 echo "   $DCMDICTPATH"
 
-#./dcmqrscp +xs -xs -c dcmqrscp.cfg -lc log2file.cfg &
-./dcmqrscp +xs -xs -dhl -v -c dcmqrscp.cfg 
+./openpacs +xs -xs -c openpacs -lc ../config/log2file.cfg &
