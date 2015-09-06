@@ -14,6 +14,7 @@
 # CMake
 **/CMakeCache.txt
 **/CMakeFiles
+**/CMakeTmp
 **/CMakeScripts
 **/Makefile
 **/Makefile.*
