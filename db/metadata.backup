@@ -714,10 +714,10 @@ BEGIN
   RAISE NOTICE 'idstudy not found with StudyInstanceUID [%]',StudyInstanceUID_;
   RAISE NOTICE 'Creating study [%]',StudyInstanceUID_;
     insert into study(
-      StudyDate, StudyTime, StudyId, StudyDescription, Modality,ModalityAetitle,  
+      StudyDate, StudyTime, StudyId, StudyDescription,
       NameOfPhysiciansReadingStudy, AccessionNumber,
       PerformingPhysiciansName, ReferringPhysiciansName, StudyInstanceUID, Status, IdPatient, InstitutionName,created_time)
-    values(StudyDate_, study_time, StudyId_, StudyDescription_, Modality_,ModalityAetitle_,  
+    values(StudyDate_, study_time, StudyId_, StudyDescription_,   
     NameOfPhysiciansReadingStudy_, AccessionNumber_,
       PerformingPhysiciansName_,ReferringPhysiciansName_,StudyInstanceUID_,
       'completed', IdPatient_, -- Al recibir una imágen siempre el estado es completed
@@ -728,7 +728,7 @@ BEGIN
    RAISE NOTICE 'Updating study info. Idstudy [%] found with StudyInstanceUID [%]',IdStudy_,StudyInstanceUID_;
      UPDATE study
   SET  studydate=StudyDate_, studytime=study_time, studydescription=StudyDescription_, 
-       modality=Modality_,ModalityAetitle=ModalityAetitle_, nameofphysiciansreadingstudy=NameOfPhysiciansReadingStudy_, accessionnumber=AccessionNumber_, 
+       nameofphysiciansreadingstudy=NameOfPhysiciansReadingStudy_, accessionnumber=AccessionNumber_, 
        performingphysiciansname=PerformingPhysiciansName_, referringphysiciansname=ReferringPhysiciansName_,
        studyinstanceuid=StudyInstanceUID, status='completed',idpatient=IdPatient_, institutionname=InstitutionName_,created_time=now()
        where IdStudy = IdStudy_;   
@@ -746,12 +746,15 @@ BEGIN
        SeriesNumber, SeriesInstanceUID, SeriesDate,
        SeriesTime, SeriesDescription, BodyPartExamined, ProtocolName,
        OperatorsName,
-       ContentLabel, IdStudy) 
+       ContentLabel, IdStudy,
+       Modality, ModalityAetitle) 
      values(SeriesNumber_, SeriesInstanceUID_, SeriesDate_,
        SeriesTime_, SeriesDescription_, BodyPartExamined_,ProtocolName_,
        OperatorsName_,
        ContentLabel_,
-       IdStudy_);
+       IdStudy_,
+       Modality_,
+       ModalityAetitle_);
      IdSeries_ = currval(pg_get_serial_sequence('series', 'idseries'));
      else
       RAISE NOTICE 'Updating series info.Idseries [%] found with SeriesInstanceUID [%]',IdSeries_,SeriesInstanceUID_;
@@ -759,11 +762,9 @@ BEGIN
    SET seriesnumber=SeriesNumber_,seriesdate=SeriesDate_, 
        seriestime=SeriesTime_, seriesdescription=SeriesDescription_, bodypartexamined=BodyPartExamined_,
        protocolname=ProtocolName_, operatorsname=OperatorsName_, contentlabel=ContentLabel_,
-       idstudy=IdStudy_
+       idstudy=IdStudy_, Modality=Modality_, ModalityAetitle=ModalityAetitle_
        where SeriesInstanceUID=SeriesInstanceUID_; 
    end if;
-
-   
 
  RAISE NOTICE '------Starting Image section---------';
   select IdImage from image
@@ -1283,8 +1284,6 @@ CREATE TABLE study (
     studytime time without time zone,
     studyid character varying(20),
     studydescription character varying(255),
-    modality character varying(2),
-    modalityaetitle character varying(50),
     nameofphysiciansreadingstudy character varying(255),
     accessionnumber character varying(20),
     performingphysiciansname character varying(255),
@@ -1516,31 +1515,6 @@ CREATE TABLE patient (
 ALTER TABLE public.patient OWNER TO postgres;
 
 --
--- TOC entry 183 (class 1259 OID 132877)
--- Dependencies: 3
--- Name: patient2; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE patient2 (
-    idpatient integer,
-    patientbirthdate date,
-    patientbirthtime time without time zone,
-    patientsex character varying(1),
-    patientname character varying(255),
-    patientid character varying(100),
-    otherpatientids character varying(20),
-    otherpatientnames character varying(255),
-    ethnicgroup character varying(20),
-    patientage character varying(20),
-    patientsize character varying(20),
-    patientweight character varying(20),
-    occupation character varying(255)
-);
-
-
-ALTER TABLE public.patient2 OWNER TO postgres;
-
---
 -- TOC entry 148 (class 1259 OID 68891)
 -- Dependencies: 3
 -- Name: series; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
@@ -1558,6 +1532,8 @@ CREATE TABLE series (
     operatorsname character varying(255),
     contentlabel character varying(255),
     idstudy integer,
+    modality character varying(2),
+    modalityaetitle character varying(50),
     processed boolean
 );
 
