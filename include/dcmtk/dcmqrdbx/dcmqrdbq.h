@@ -61,8 +61,6 @@ public:
     long maxStudiesPerStorageArea,
     long maxBytesPerStudy,
     const char *connectionString,    
-    const char *thumbSize,
-    const char *thumbPath,
     OFCondition& result);
   
   /** Destructor. Destroys handle, cancels any ongoing
@@ -220,13 +218,6 @@ public:
   // connection string
   char connectionString_[257] ;
 
-  //griensu
-  // thumbnail size
-  char thumbSize_[257] ;
-
-  // thumbnail path
-  char thumbPath_[257] ;
-
   /** dump database index file to stdout.
    *  @param storeArea name of storage area, must not be NULL
    */
@@ -313,7 +304,6 @@ private:
   int dbmatch (DB_SmallDcmElmt *mod, DB_SmallDcmElmt *elt);
   void makeResponseList(DB_Private_Handle *phandle, IdxRecord *idxRec);
   void makeSqlResponseList(DB_Private_Handle *phandle);
-  OFCondition guardarThumbnail(const char  *imageFileName, DcmQueryRetrieveDatabaseStatus   *status);
   int matchStudyUIDInStudyDesc (StudyDescRecord *pStudyDesc, char *StudyUID, int maxStudiesAllowed);
   OFCondition checkupinStudyDesc(StudyDescRecord *pStudyDesc, char *StudyUID, long imageSize);
   unsigned int queryPos;

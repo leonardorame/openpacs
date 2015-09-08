@@ -86,6 +86,8 @@ void DcmQueryRetrieveStoreContext::saveImageToDB(
 {
     OFCondition dbcond = EC_Normal;
     DcmQueryRetrieveDatabaseStatus dbStatus(STATUS_Success);
+    
+    // TODO: the
 
     /* Store image */
     if (options_.ignoreStoreData_) {
@@ -160,6 +162,8 @@ void DcmQueryRetrieveStoreContext::writeToFile(
     DcmXfer original_xfer(dataset->getOriginalXfer());
     if (original_xfer.isEncapsulated())
     {
+      // TODO: first check if the file has the same transfer syntax as the to be stored
+      // the uncompression is not necessary.
       DCMQRDB_INFO("DICOM file is already compressed, converting to uncompressed transfer syntax first");
       if (EC_Normal != dataset->chooseRepresentation(EXS_LittleEndianExplicit, NULL))
       {
@@ -168,6 +172,11 @@ void DcmQueryRetrieveStoreContext::writeToFile(
         return;
       }
     }
+
+    // TODO: here the Representation is forced to JP2K,
+    // this must be configured in the database,
+    // depending on Sender AETitle and Modality.
+    // for example: const DcmRepresentationParameter *rp = &getRepresentationParameter()
 
     //create representation parameter
     FMJP2KRepresentationParameter rp(OFstatic_cast(Uint16, opt_nearlossless_psnr), opt_useLosslessProcess);
@@ -235,6 +244,7 @@ void DcmQueryRetrieveStoreContext::checkRequestAgainstDataset(
 }
 
 /* plugin for pre-processing dataset */
+// TODO: replace for javascript/lua scripts
 void DcmQueryRetrieveStoreContext::ProcessDataset(DcmFileFormat * ff)
 {
     DCMQRDB_INFO("Opening libpreprocess.so...");
@@ -288,7 +298,6 @@ void DcmQueryRetrieveStoreContext::callbackHandler(
             }
         }
         
-
         if (!options_.ignoreStoreData_ && rsp->DimseStatus == STATUS_Success) {
             if ((imageDataSet)&&(*imageDataSet)) {
                 writeToFile(dcmff, fileName, rsp);

@@ -5,7 +5,7 @@ set(DCMTK_LIB ${dcmtk_root}/lib)
 #set(OPENJPEG /usr/local/lib/openjpeg-2.1)
 #include openjpeg
 #include(${OPENJPEG}/OpenJPEGConfig.cmake)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # declare include directories which hold for all subdirectories
 INCLUDE_DIRECTORIES(../include ${osconfig_SOURCE_DIR}/include ${ofstd_SOURCE_DIR}/include ${oflog_SOURCE_DIR}/include ${oflog_SOURCE_DIR}/include ${dcmdata_SOURCE_DIR}/include ${dcmnet_SOURCE_DIR}/include ${ZLIB_INCDIR} /usr/include/postgresql /usr/local/include/openjpeg-2.1 /usr/local/include/fmjpeg2k )

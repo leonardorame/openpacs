@@ -8,4 +8,4 @@ echo "   `date`"
 echo "   =============================="
 echo "   $DCMDICTPATH"
 
-./openpacs +xs -xs -c openpacs -lc ../config/log2file.cfg &
+./openpacssrv +xs -xs -c openpacs -lc ../config/log2file.cfg &

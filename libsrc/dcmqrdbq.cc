@@ -3014,90 +3014,6 @@ int DcmQueryRetrieveSqlDatabaseHandle::matchStudyUIDInStudyDesc (StudyDescRecord
 }
 
 /*************************
-**  Guarda la imagen recien recibida como thumbnail
-*/
-
-OFCondition DcmQueryRetrieveSqlDatabaseHandle::guardarThumbnail(
-  const char  *imageFileName,
-  DcmQueryRetrieveDatabaseStatus   *status
-  )
-{
-  std::string lThumb,lPathThumb;
-  lThumb = thumbSize_;
-  lPathThumb = thumbPath_;
-
-  unsigned long lThumbSize = atoi(lThumb.c_str());
-
-  // register global decompression codecs
-  DJDecoderRegistration::registerCodecs();
-
-  DicomImage *image = new DicomImage(
-    imageFileName,
-    0,
-    0,
-    1
-  );
-
-  DicomImage *newimage;
-  newimage = image->createScaledImage(lThumbSize);
-
-  if (newimage == NULL)
-  {
-    DCMQRDB_ERROR("Out of memory or cannot scale image");
-    return (DcmQRSqlDatabaseJPGError) ;
-  }
-  else if (newimage->getStatus() != EIS_Normal)
-  {
-    DCMQRDB_ERROR("Error al crear Scaled Image" << DicomImage::getString(newimage->getStatus()));
-    return (DcmQRSqlDatabaseJPGError) ;
-  }
-
-  newimage->setWindow(0); //opt_windowParameter - 1
-
-  std::string newFileName = imageFileName;
-  std::string result="";
-  std::string path=imageFileName;
-
-  if(path.find_first_of("\\")!=std::string::npos)//Winjdows
-          {
-            result =path.substr( path.find_last_of( "\\" ) +1 );
-            newFileName=result;
-          }
-          if(path.find_first_of("//")!=std::string::npos)//limux
-          {
-            result =path.substr( path.find_last_of( "//" ) +1 );
-            newFileName=result;
-          }
-  //Almacenando en JPEG
-
-  DiJPEGPlugin plugin;
-  plugin.setQuality(OFstatic_cast(unsigned int, opt_quality));
-  plugin.setSampling(opt_sampling);
-  FILE *ofile = NULL;
-
-  newFileName = lPathThumb + "/" + newFileName + ".jpg";
-  ofile = fopen(newFileName.c_str(), "wb");
-
-  // intentamos guardar el jpeg
-  if(!newimage->writePluginFormat(&plugin,ofile, 0)) {
-    DCMQRDB_INFO("Exception al intentar grabar archivo " << newFileName << " probablemente el directorio no exista.");
-    status->setStatus(STATUS_STORE_Error_CannotUnderstand);
-    return (DcmQRSqlDatabaseError);
-  }
-
-  fclose(ofile);
-  //delete ofile;
-  delete newimage;
-  delete image;
-
-  // deregister global codecs
-  DJDecoderRegistration::cleanup();
-
-  return (EC_Normal);
-}
-
-
-/*************************
 **  Add data from imageFileName to database
  */
 
@@ -3474,10 +3390,6 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::storeRequest (
      PQfinish(dbconn);
      return (DcmQRSqlDatabaseError);
      }
-      // Guardamos el Thumbnail
-      //OFCondition lResult = guardarThumbnail(imageFileName, status);
-      //if(lResult != EC_Normal)
-      //  return(lResult);
       DCMQRDB_INFO("Commit taking place ..");
       PQexec(dbconn, "COMMIT");
       PQfinish(dbconn); 
@@ -3600,8 +3512,6 @@ DcmQueryRetrieveSqlDatabaseHandle::DcmQueryRetrieveSqlDatabaseHandle(
     long maxStudiesPerStorageArea,
     long maxBytesPerStudy,
     const char *connectionString,
-    const char *thumbSize,
-    const char *thumbPath,
     OFCondition& result)
 : handle_(NULL)
 , quotaSystemEnabled(OFTrue)
@@ -3618,10 +3528,6 @@ DcmQueryRetrieveSqlDatabaseHandle::DcmQueryRetrieveSqlDatabaseHandle(
     sprintf (handle_ -> storageArea,"%s", storageArea);
     // se asigna el connection string
     sprintf (connectionString_, "%s", connectionString);
-    // se asigna el thumbsize
-    sprintf (thumbSize_, "%s", thumbSize);
-    // se asigna el path del thumbnail
-    sprintf (thumbPath_, "%s", thumbPath);
     return;
 }
 
@@ -3808,8 +3714,6 @@ DcmQueryRetrieveDatabaseHandle *DcmQueryRetrieveSqlDatabaseHandleFactory::create
     config_->getMaxStudies(calledAETitle),
     config_->getMaxBytesPerStudy(calledAETitle),
     config_->getConnectionString(),
-    config_->getThumbSize(),
-    config_->getThumbPath(),
     result);
 }
 
