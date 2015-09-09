@@ -50,6 +50,7 @@
 #include "dcmtk/dcmjpeg/dipijpeg.h"  /* for dcmimage JPEG plugin */
 #include "dcmtk/dcmimage/diregist.h"  /* include to support color images */
 #include <dlfcn.h>
+#include "libpq-fe.h"
 
 void DcmQueryRetrieveStoreContext::updateDisplay(T_DIMSE_StoreProgress * progress)
 {
@@ -287,6 +288,7 @@ void DcmQueryRetrieveStoreContext::callbackHandler(
     T_DIMSE_C_StoreRSP *rsp,            /* final store response */
     DcmDataset **stDetail)
 {
+    PGconn * conn;
     updateDisplay(progress);
 
     if (progress->state == DIMSE_StoreEnd) {
@@ -301,6 +303,7 @@ void DcmQueryRetrieveStoreContext::callbackHandler(
         
         if (!options_.ignoreStoreData_ && rsp->DimseStatus == STATUS_Success) {
             // TODO: here the connection to database should be established
+            //conn = dbHandle.connectToDb();
             if ((imageDataSet)&&(*imageDataSet)) {
                 writeToFile(dcmff, fileName, rsp);
             }
