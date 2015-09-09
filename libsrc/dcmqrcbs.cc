@@ -87,7 +87,8 @@ void DcmQueryRetrieveStoreContext::saveImageToDB(
     OFCondition dbcond = EC_Normal;
     DcmQueryRetrieveDatabaseStatus dbStatus(STATUS_Success);
     
-    // TODO: the
+    // TODO: get the storage rules
+    // for the current sender.
 
     /* Store image */
     if (options_.ignoreStoreData_) {
@@ -299,12 +300,14 @@ void DcmQueryRetrieveStoreContext::callbackHandler(
         }
         
         if (!options_.ignoreStoreData_ && rsp->DimseStatus == STATUS_Success) {
+            // TODO: here the connection to database should be established
             if ((imageDataSet)&&(*imageDataSet)) {
                 writeToFile(dcmff, fileName, rsp);
             }
             if (rsp->DimseStatus == STATUS_Success) {
                 saveImageToDB(req, fileName, rsp, stDetail);
             }
+            // TODO: disconnect from database
         }
 
         OFString str;

@@ -218,10 +218,6 @@ public:
   // connection string
   char connectionString_[257] ;
 
-  /** dump database index file to stdout.
-   *  @param storeArea name of storage area, must not be NULL
-   */
-  static void printIndexFile (char *storeArea);
     
   /** deletes the given file only if the quota mechanism is enabled.
    *  The image is not de-registered from the database by this routine.
@@ -304,6 +300,8 @@ private:
   int dbmatch (DB_SmallDcmElmt *mod, DB_SmallDcmElmt *elt);
   void makeResponseList(DB_Private_Handle *phandle, IdxRecord *idxRec);
   void makeSqlResponseList(DB_Private_Handle *phandle);
+  PGconn * connectToDb();
+  void disconnectFromDb(PGconn * connection);
   int matchStudyUIDInStudyDesc (StudyDescRecord *pStudyDesc, char *StudyUID, int maxStudiesAllowed);
   OFCondition checkupinStudyDesc(StudyDescRecord *pStudyDesc, char *StudyUID, long imageSize);
   unsigned int queryPos;

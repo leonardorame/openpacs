@@ -2078,6 +2078,25 @@ std::string DcmQueryRetrieveSqlDatabaseHandle::getCMoveSql(
 
 
 /********************
+**      Connect to db
+**/
+PGconn * DcmQueryRetrieveSqlDatabaseHandle::connectToDb()
+{
+    std::string lConn;
+    lConn = connectionString_;
+
+    return PQconnectdb(lConn.c_str());
+}
+
+/********************
+**      Disconnect from db
+**/
+void DcmQueryRetrieveSqlDatabaseHandle::disconnectFromDb(PGconn * connection)
+{
+    PQfinish(connection);
+}
+
+/********************
 **      Start find in Database
 **/
 
@@ -3066,30 +3085,6 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::storeRequest (
     }
 
     DcmDataset *dset = dcmff.getDataset();
-/*
-    for (i = 0 ; i < NBPARAMETERS ; i++ ) {
-        OFCondition ec = EC_Normal;
-        DB_SmallDcmElmt *se = idxRec.param + i;
-    DCMQRDB_INFO("---0c--");
-
-        const char *strPtr = NULL;
-        ec = dset->findAndGetString(se->XTag, strPtr);
-        if ((ec != EC_Normal) || (strPtr == NULL)) {
-            // not found or empty 
-            se->PValueField[0] = '\0';
-            se->ValueLength = 0;
-        } else {
-            // found and non-empty 
-            strncpy(se->PValueField, strPtr, (size_t)(se->ValueLength));
-            // important: do not change the ValueLength field before the string is copied! 
-            se->ValueLength = strlen(se->PValueField);
-        }
-    }
-
-*/
-
-    /* InstanceStatus */
-    idxRec.hstat = (isNew) ? DVIF_objectIsNew : DVIF_objectIsNotNew;
 
     /* InstanceDescription */
     OFBool useDescrTag = OFTrue;
@@ -3146,7 +3141,6 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::storeRequest (
       // iniciamos una transacción
       PQexec(dbconn, "BEGIN");
 
-    
       std::stringstream sql;
       sql << "select storeimage_experimental(";
 
@@ -3414,76 +3408,6 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::pruneInvalidRecords()
     // con Index file en vez de base de datos.
     // No hacemos nada aqui.
     return EC_Normal;
-}
-
-
-/* ========================= INDEX ========================= */
-
-
-/************************
- *      Dump an index file
- */
-
-void DcmQueryRetrieveSqlDatabaseHandle::printIndexFile (char *storeArea)
-{
-    /**int i ;
-    int j ;
-    IdxRecord           idxRec ;
-    StudyDescRecord     *pStudyDesc;
-
-    OFCondition result;
-    DcmQueryRetrieveSqlDatabaseHandle handle(storeArea, -1, -1, &connectionString_, result);
-    if (result.bad()) return;
-
-    pStudyDesc = (StudyDescRecord *)malloc (SIZEOF_STUDYDESC) ;
-    if (pStudyDesc == NULL) {
-        DCMQRDB_ERROR("printIndexFile: out of memory");
-        return;
-    }
-
-    handle.DB_lock(OFFalse);
-
-    handle.DB_GetStudyDesc(pStudyDesc);
-
-    for (i=0; i<handle.handle_->maxStudiesAllowed; i++) {
-        if (pStudyDesc[i].NumberofRegistratedImages != 0 ) {
-            COUT << "******************************************************" << OFendl
-                << "STUDY DESCRIPTOR: " << i << OFendl
-                << "  Study UID: " << pStudyDesc[i].StudyInstanceUID << OFendl
-                << "  StudySize: " << pStudyDesc[i].StudySize << OFendl
-                << "  LastRecDate: " << pStudyDesc[i].LastRecordedDate << OFendl
-                << "  NumOfImages: " << pStudyDesc[i].NumberofRegistratedImages << OFendl;
-        }
-    }
-
-    handle.DB_IdxInitLoop (&j) ;
-    while (1) {
-        if (handle.DB_IdxGetNext(&j, &idxRec) != EC_Normal)
-            break ;
-
-        COUT << "*******************************************************" << OFendl;
-        COUT << "RECORD NUMBER: " << j << OFendl << "  Status: ";
-        if (idxRec.hstat == DVIF_objectIsNotNew)
-            COUT << "is NOT new" << OFendl;
-        else
-            COUT << "is new" << OFendl;
-        COUT << "  Filename: " << idxRec.filename << OFendl
-             << "  ImageSize: " << idxRec.ImageSize << OFendl
-             << "  RecordedDate: " << idxRec.RecordedDate << OFendl;
-        for (i = 0 ; i < NBPARAMETERS ; i++) {  // new definition
-            DB_SmallDcmElmt *se = idxRec.param + i;
-            const char* value = "";
-            if (se->PValueField != NULL) value = se->PValueField;
-            DcmTag tag(se->XTag);
-            COUT << "    " << tag.getTagName() << ": \"" << value << "\"" << OFendl;
-        }
-        COUT << "  InstanceDescription: \"" << idxRec.InstanceDescription << "\"" << OFendl;
-    }
-    COUT << "*******************************************************" << OFendl
-         << "RECORDS IN THIS INDEXFILE: " << j << OFendl;
-
-    handle.DB_unlock();
-  */
 }
 
 
