@@ -1374,7 +1374,6 @@ std::string DcmQueryRetrieveSqlDatabaseHandle::getDateRange(
     return " = '" + StudyDate + "'";
 }
 
-
 /********************
 **      Crea el SQL para hacer CFind en la base de datos
 **/
@@ -1761,20 +1760,22 @@ std::string DcmQueryRetrieveSqlDatabaseHandle::getCMoveSql(
 /********************
 **      Connect to db
 **/
-PGconn * DcmQueryRetrieveSqlDatabaseHandle::connectToDb()
+void DcmQueryRetrieveSqlDatabaseHandle::connectToDb()
 {
     std::string lConn;
     lConn = connectionString_;
 
-    return PQconnectdb(lConn.c_str());
+    DCMQRDB_INFO("Connect To DB");
+    connection_ = PQconnectdb(lConn.c_str());
 }
 
 /********************
 **      Disconnect from db
 **/
-void DcmQueryRetrieveSqlDatabaseHandle::disconnectFromDb(PGconn * connection)
+void DcmQueryRetrieveSqlDatabaseHandle::disconnectFromDb()
 {
-    PQfinish(connection);
+    DCMQRDB_INFO("Disconnect From DB");
+    PQfinish(connection_);
 }
 
 /********************
@@ -3125,6 +3126,7 @@ DcmQueryRetrieveSqlDatabaseHandle::DcmQueryRetrieveSqlDatabaseHandle(
     sprintf (handle_ -> storageArea,"%s", storageArea);
     // se asigna el connection string
     sprintf (connectionString_, "%s", connectionString);
+    connectToDb();
     return;
 }
 
@@ -3139,6 +3141,7 @@ const char* DcmQueryRetrieveSqlDatabaseHandle::getCallingAETitle()
 
 DcmQueryRetrieveSqlDatabaseHandle::~DcmQueryRetrieveSqlDatabaseHandle()
 {
+    disconnectFromDb();
     if (handle_)
     {
       //closeresult = close( handle_ -> pidx);

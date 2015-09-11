@@ -226,36 +226,6 @@ public:
    */
   OFCondition deleteImageFile(char* imgFile);
 
-  /** create lock on database
-   *  @param exclusive exclusive/shared lock flag
-   *  @return EC_Normal upon success, an error code otherwise
-   */
-  OFCondition DB_lock(OFBool exclusive);
-
-  /** release lock on database
-   */
-  OFCondition DB_unlock();
-
-  /** Get next Index record that is in use (i.e. references a non-empty a filename)
-   *  @param idx pointer to index number, updated upon successful return
-   *  @param idxRec pointer to index record structure
-   *  @return EC_Normal upon success, an error code otherwise
-   */
-  OFCondition DB_IdxGetNext(int *idx, IdxRecord *idxRec);
-
-  /** seek to beginning of image records in index file
-   *  @param idx initialized to -1
-   *  @return EC_Normal upon success, an error code otherwise
-   */
-  OFCondition DB_IdxInitLoop(int *idx);
-
-  /** read index record at given index
-   *  @param idx index
-   *  @param idxRec pointer to index record
-   *  @return EC_Normal upon success, an error code otherwise
-   */
-  OFCondition DB_IdxRead(int idx, IdxRecord *idxRec);
-
   /** get study descriptor record from start of index file
    *  @param pStudyDesc pointer to study record descriptor structure
    *  @return EC_Normal upon success, an error code otherwise
@@ -267,12 +237,6 @@ public:
    *  @return EC_Normal upon success, an error code otherwise
    */
   OFCondition DB_StudyDescChange(StudyDescRecord *pStudyDesc);
-
-  /** deactivate index record at given index by setting an empty filename
-   *  @param idx index
-   *  @return EC_Normal upon success, an error code otherwise
-   */
-  OFCondition DB_IdxRemove(int idx);
 
   /** clear the "is new" flag for the instance with the given index
    *  @param idx index
@@ -288,6 +252,9 @@ public:
 
   // return calling aetitle
   const char *getCallingAETitle();
+  
+  // database connection
+  PGconn * connection_;
 
 private:
   int deleteOldestStudy(StudyDescRecord *pStudyDesc);
@@ -300,8 +267,8 @@ private:
   int dbmatch (DB_SmallDcmElmt *mod, DB_SmallDcmElmt *elt);
   void makeResponseList(DB_Private_Handle *phandle, IdxRecord *idxRec);
   void makeSqlResponseList(DB_Private_Handle *phandle);
-  PGconn * connectToDb();
-  void disconnectFromDb(PGconn * connection);
+  void connectToDb();
+  void disconnectFromDb();
   int matchStudyUIDInStudyDesc (StudyDescRecord *pStudyDesc, char *StudyUID, int maxStudiesAllowed);
   OFCondition checkupinStudyDesc(StudyDescRecord *pStudyDesc, char *StudyUID, long imageSize);
   unsigned int queryPos;

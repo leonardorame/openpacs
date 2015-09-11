@@ -265,8 +265,6 @@ void DcmQueryRetrieveStoreContext::ProcessDataset(DcmFileFormat * ff)
      DCMQRDB_INFO("Calling ProcessDataset...");
      lprocessDset(ff);
      DCMQRDB_INFO("ProcessDataset finished ok.");
-
-      //ff->saveFile("/home/leonardo/Desarrollo/dcmtk/DCMQRSCP/salida.dcm");
     }
     else
     {
@@ -274,8 +272,6 @@ void DcmQueryRetrieveStoreContext::ProcessDataset(DcmFileFormat * ff)
       error = dlerror();
       DCMQRDB_INFO("Cannot open open libpreprocess.so (" << error);
     }
-
-    //dlclose(lhandle);
 }
 
 void DcmQueryRetrieveStoreContext::callbackHandler(
