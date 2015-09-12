@@ -39,7 +39,6 @@ END_EXTERN_C
 #include "dcmtk/dcmdata/dcuid.h"
 #include "dcmtk/ofstd/ofstd.h"
 #include "dcmtk/dcmqrdbx/dcmqrdbq.h"
-/*Pasini Nicolas*/
 #include "dcmtk/dcmimgle/dcmimage.h"
 // JPEG parameters
 #include "djencode.h"      /* for DJLSEncoderRegistration */
