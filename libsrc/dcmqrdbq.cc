@@ -28,7 +28,6 @@ END_EXTERN_C
 #define INCLUDE_CSTDARG
 #include "dcmtk/ofstd/ofstdinc.h"
 
-
 #include "dcmtk/dcmqrdb/dcmqrdbs.h"
 #include "dcmtk/dcmqrdb/dcmqrcnf.h"
 #include "dcmtk/dcmqrdb/dcmqridx.h"

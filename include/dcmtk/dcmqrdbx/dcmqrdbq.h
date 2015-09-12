@@ -1,6 +1,6 @@
 /*
  *
- *  Copyright (C) 2010, Griensu S.A.
+ *  Copyright (C) 2015, Leonardo M. Ramé
  *
  *  Module:  dcmqrdb
  *
