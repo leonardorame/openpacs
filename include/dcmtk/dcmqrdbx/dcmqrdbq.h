@@ -232,12 +232,6 @@ public:
    */
   OFCondition DB_GetStudyDesc(StudyDescRecord *pStudyDesc);
 
-  /** write study descriptor record to start of index file
-   *  @param pStudyDesc pointer to study record descriptor structure
-   *  @return EC_Normal upon success, an error code otherwise
-   */
-  OFCondition DB_StudyDescChange(StudyDescRecord *pStudyDesc);
-
   /** clear the "is new" flag for the instance with the given index
    *  @param idx index
    *  @return EC_Normal upon success, an error code otherwise
@@ -256,6 +250,12 @@ public:
   // database connection
   PGconn * connection_;
 
+  // connect to db
+  OFCondition connect();
+
+  // disconnect from db
+  OFCondition disconnect();
+
 private:
   int deleteOldestStudy(StudyDescRecord *pStudyDesc);
   OFCondition deleteOldestImages(StudyDescRecord *pStudyDesc, int StudyNum, char *StudyUID, long RequiredSize);
@@ -267,8 +267,6 @@ private:
   int dbmatch (DB_SmallDcmElmt *mod, DB_SmallDcmElmt *elt);
   void makeResponseList(DB_Private_Handle *phandle, IdxRecord *idxRec);
   void makeSqlResponseList(DB_Private_Handle *phandle);
-  void connectToDb();
-  void disconnectFromDb();
   int matchStudyUIDInStudyDesc (StudyDescRecord *pStudyDesc, char *StudyUID, int maxStudiesAllowed);
   OFCondition checkupinStudyDesc(StudyDescRecord *pStudyDesc, char *StudyUID, long imageSize);
   unsigned int queryPos;
@@ -346,7 +344,7 @@ public:
    *  @param result result returned in this variable
    *  @return pointer to database object, must not be NULL if result is EC_Normal.
    */
-  virtual DcmQueryRetrieveDatabaseHandle *createDBHandle(
+  virtual DcmQueryRetrieveSqlDatabaseHandle *createDBHandle(
     const char *callingAETitle, 
     const char *calledAETitle,
     OFCondition& result) const;

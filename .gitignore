@@ -21,3 +21,6 @@
 **/*.cmake
 **/cmake_install.cmake
 **/install_manifest.txt
+
+# log files
+**/*.log

@@ -109,15 +109,15 @@ static void storeCallback(
 DcmQueryRetrieveSCP::DcmQueryRetrieveSCP(
   const DcmQueryRetrieveConfig& config,
   const DcmQueryRetrieveOptions& options,
-  const DcmQueryRetrieveDatabaseHandleFactory& factory)
+  const DcmQueryRetrieveSqlDatabaseHandleFactory& factory)
 : config_(&config)
 , dbCheckFindIdentifier_(OFFalse)
 , dbCheckMoveIdentifier_(OFFalse)
 , factory_(factory)
 , options_(options)
 {
+	dbHandle = NULL;
 }
-
 
 OFCondition DcmQueryRetrieveSCP::dispatch(T_ASC_Association *assoc, OFBool correctUIDPadding)
 {
@@ -132,21 +132,10 @@ OFCondition DcmQueryRetrieveSCP::dispatch(T_ASC_Association *assoc, OFBool corre
     // and released for each DIMSE command.
     while (cond.good())
     {
-
-        /* Create a database handle for this association */
-        DcmQueryRetrieveDatabaseHandle *dbHandle = factory_.createDBHandle(
-              assoc->params->DULparams.callingAPTitle,
-          assoc->params->DULparams.calledAPTitle, cond);
-        if (cond.bad())
-        {
-          DCMQRDB_ERROR("dispatch: cannot create DB Handle");
-          return cond;
-        }
-
         if (dbHandle == NULL)
         {
           // this should not happen, but we check it anyway
-          DCMQRDB_ERROR("dispatch: cannot create DB Handle");
+          DCMQRDB_ERROR("dispatch: DB Handle not created.");
           return EC_IllegalCall;
         }
 
@@ -202,14 +191,11 @@ OFCondition DcmQueryRetrieveSCP::dispatch(T_ASC_Association *assoc, OFBool corre
                 // the condition will be returned, the caller will abort the assosiation.
             }
         }
-        // release DB handle
-        delete dbHandle;
     }
 
     // Association done
     return cond;
 }
-
 
 OFCondition DcmQueryRetrieveSCP::handleAssociation(T_ASC_Association * assoc, OFBool correctUIDPadding)
 {
@@ -270,7 +256,7 @@ OFCondition DcmQueryRetrieveSCP::echoSCP(T_ASC_Association * assoc, T_DIMSE_C_Ec
 
 OFCondition DcmQueryRetrieveSCP::findSCP(T_ASC_Association * assoc, T_DIMSE_C_FindRQ * request,
         T_ASC_PresentationContextID presID,
-        DcmQueryRetrieveDatabaseHandle& dbHandle)
+        DcmQueryRetrieveSqlDatabaseHandle& dbHandle)
 
 {
     OFCondition cond = EC_Normal;
@@ -294,7 +280,7 @@ OFCondition DcmQueryRetrieveSCP::findSCP(T_ASC_Association * assoc, T_DIMSE_C_Fi
 
 
 OFCondition DcmQueryRetrieveSCP::getSCP(T_ASC_Association * assoc, T_DIMSE_C_GetRQ * request,
-        T_ASC_PresentationContextID presID, DcmQueryRetrieveDatabaseHandle& dbHandle)
+        T_ASC_PresentationContextID presID, DcmQueryRetrieveSqlDatabaseHandle& dbHandle)
 {
     OFCondition cond = EC_Normal;
     DcmQueryRetrieveGetContext context(dbHandle, options_, STATUS_Pending, assoc, request->MessageID, request->Priority, presID);
@@ -317,7 +303,7 @@ OFCondition DcmQueryRetrieveSCP::getSCP(T_ASC_Association * assoc, T_DIMSE_C_Get
 
 
 OFCondition DcmQueryRetrieveSCP::moveSCP(T_ASC_Association * assoc, T_DIMSE_C_MoveRQ * request,
-        T_ASC_PresentationContextID presID, DcmQueryRetrieveDatabaseHandle& dbHandle)
+        T_ASC_PresentationContextID presID, DcmQueryRetrieveSqlDatabaseHandle& dbHandle)
 {
     OFCondition cond = EC_Normal;
     DcmQueryRetrieveMoveContext context(dbHandle, options_, config_, STATUS_Pending, assoc, request->MessageID, request->Priority);
@@ -338,10 +324,9 @@ OFCondition DcmQueryRetrieveSCP::moveSCP(T_ASC_Association * assoc, T_DIMSE_C_Mo
     return cond;
 }
 
-
 OFCondition DcmQueryRetrieveSCP::storeSCP(T_ASC_Association * assoc, T_DIMSE_C_StoreRQ * request,
              T_ASC_PresentationContextID presId,
-             DcmQueryRetrieveDatabaseHandle& dbHandle,
+             DcmQueryRetrieveSqlDatabaseHandle& dbHandle,
              OFBool correctUIDPadding)
 {
     OFCondition cond = EC_Normal;
@@ -401,8 +386,6 @@ OFCondition DcmQueryRetrieveSCP::storeSCP(T_ASC_Association * assoc, T_DIMSE_C_S
     else
       dcmtk_flock(lockfd, LOCK_EX);
 #endif
-
-
 
     context.setFileName(imageFileName);
 
@@ -931,6 +914,28 @@ OFCondition DcmQueryRetrieveSCP::waitForAssociation(T_ASC_Network * theNet)
 
     if (! go_cleanup)
     {
+		/* Create a database handle for this association */
+		if(dbHandle != NULL)
+			DCMQRDB_INFO("dbhandle already created this shouldn't happen.");
+
+        dbHandle = factory_.createDBHandle(
+          assoc->params->DULparams.callingAPTitle,
+          assoc->params->DULparams.calledAPTitle, cond);
+        if (cond.bad())
+        {
+          DCMQRDB_ERROR("waitForAssociation: cannot create DB Handle");
+          return cond;
+        }
+
+		// connect to database
+		cond = dbHandle->connect();
+		if(cond.bad())
+		{
+          DCMQRDB_ERROR("waitForAssociation: cannot connect to the database.");
+		  delete dbHandle;
+          return cond;
+		}
+
         time_t t = time(NULL);
         DCMQRDB_INFO("Association Received (" << assoc->params->DULparams.callingPresentationAddress
                 << ":" << assoc->params->DULparams.callingAPTitle << " -> "
@@ -1068,6 +1073,9 @@ OFCondition DcmQueryRetrieveSCP::waitForAssociation(T_ASC_Network * theNet)
     }
 
     if (oldcond == ASC_SHUTDOWNAPPLICATION) cond = oldcond; /* abort flag is reported to top-level wait loop */
+	// release DB handle
+	dbHandle->disconnect();
+	delete dbHandle;
     return cond;
 }
 

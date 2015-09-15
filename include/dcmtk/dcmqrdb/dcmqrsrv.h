@@ -1,5 +1,5 @@
 /*
- *
+
  *  Copyright (C) 1993-2009, OFFIS
  *
  *  This software and supporting documentation were developed by
@@ -38,13 +38,12 @@
 #include "dcmtk/dcmnet/assoc.h"
 #include "dcmtk/dcmnet/dimse.h"
 #include "dcmtk/dcmqrdb/dcmqrptb.h"
+#include "dcmtk/dcmqrdbx/dcmqrdbq.h"
 
 class DcmQueryRetrieveConfig;
 class DcmQueryRetrieveOptions;
-class DcmQueryRetrieveDatabaseHandle;
-class DcmQueryRetrieveDatabaseHandleFactory;
 
-/// enumeration describing reasons for refusing an association request
+// enumeration describing reasons for refusing an association request
 enum CTN_RefuseReason
 {
     /// too many concurrent associations
@@ -75,7 +74,7 @@ public:
   DcmQueryRetrieveSCP(
     const DcmQueryRetrieveConfig& config,
     const DcmQueryRetrieveOptions& options,
-    const DcmQueryRetrieveDatabaseHandleFactory& factory);
+    const DcmQueryRetrieveSqlDatabaseHandleFactory& factory);
 
   /// destructor
   virtual ~DcmQueryRetrieveSCP() { }
@@ -99,6 +98,7 @@ public:
   /** clean up terminated child processes.
    */
   void cleanChildren();
+  DcmQueryRetrieveSqlDatabaseHandle *dbHandle;
 
 private:
   /** perform association negotiation for an incoming A-ASSOCIATE request based
@@ -124,25 +124,25 @@ private:
     T_ASC_Association * assoc,
     T_DIMSE_C_FindRQ * request,
     T_ASC_PresentationContextID presID,
-    DcmQueryRetrieveDatabaseHandle& dbHandle);
+    DcmQueryRetrieveSqlDatabaseHandle& dbHandle);
 
   OFCondition getSCP(
     T_ASC_Association * assoc,
     T_DIMSE_C_GetRQ * request,
     T_ASC_PresentationContextID presID,
-    DcmQueryRetrieveDatabaseHandle& dbHandle);
+    DcmQueryRetrieveSqlDatabaseHandle& dbHandle);
 
   OFCondition moveSCP(
     T_ASC_Association * assoc,
     T_DIMSE_C_MoveRQ * request,
     T_ASC_PresentationContextID presID,
-    DcmQueryRetrieveDatabaseHandle& dbHandle);
+    DcmQueryRetrieveSqlDatabaseHandle& dbHandle);
 
   OFCondition storeSCP(
     T_ASC_Association * assoc,
     T_DIMSE_C_StoreRQ * req,
     T_ASC_PresentationContextID presId,
-    DcmQueryRetrieveDatabaseHandle& dbHandle,
+    DcmQueryRetrieveSqlDatabaseHandle& dbHandle,
     OFBool correctUIDPadding);
 
   OFCondition dispatch(
@@ -164,7 +164,7 @@ private:
   OFBool dbCheckMoveIdentifier_;
 
   /// factory object used to create database handles
-  const DcmQueryRetrieveDatabaseHandleFactory& factory_;
+  const DcmQueryRetrieveSqlDatabaseHandleFactory& factory_;
 
   /// SCP configuration options
   const DcmQueryRetrieveOptions& options_;

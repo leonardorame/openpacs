@@ -524,7 +524,6 @@ int DcmQueryRetrieveConfig::leerHostTable()
 
 int DcmQueryRetrieveConfig::peerForAETitle(const char *AETitle, const char **HostName, int *PortNumber) const
 {
-
     std::string lConn;
     std::string lAETitle = AETitle;
     std::string lSql = "select name,ip,port,aetitle from externalsystem where Upper(aetitle) = Upper('" + lAETitle + "')";
@@ -1085,11 +1084,14 @@ long DcmQueryRetrieveConfig::getMaxBytesPerStudy(const char *AETitle) const
    return(0);       /* AETitle not found */
 }
 
-
+/* This function check for existence of
+ * called AETitle and calling AETitle relationship
+ */
 int DcmQueryRetrieveConfig::peerInAETitle(const char *calledAETitle, const char *callingAETitle, const char *HostName) const
 {
+   // TODO: replace this with a database query.
    int  i,
-    j;
+   j;
    for(i = 0; i < CNF_Config.noOfAEEntries; i++) {
       if (!strcmp(calledAETitle, CNF_Config.AEEntries[i].ApplicationTitle)) {
          if (CNF_Config.AEEntries[i].noOfPeers == -1) /* ANY Peer allowed */

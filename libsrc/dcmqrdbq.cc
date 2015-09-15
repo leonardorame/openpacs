@@ -198,90 +198,6 @@ static void DB_UIDAddFound (
 }
 
 
-/******************************
- *      Seek to a file position and do error checking
- *
- * Motivation:
- * We have had situations during demonstrations where size of the DB index file
- * has exploded.  It seems that a record is being written to a position
- * way past the end of file.
- * This seek function does some sanity error checking to try to identify
- * the problem.
- */
-static long DB_lseek(int fildes, long offset, int whence)
-{
-    long pos;
-    long curpos;
-    long endpos;
-
-    /*
-    ** we should not be seeking to an offset < 0
-    */
-    if (offset < 0) {
-        DCMQRDB_ERROR("*** DB ALERT: attempt to seek before begining of file");
-    }
-
-    /* get the current position */
-    curpos = lseek(fildes, 0, SEEK_CUR);
-    if (curpos < 0) {
-        DCMQRDB_ERROR("DB_lseek: cannot get current position: " << strerror(errno));
-        return curpos;
-    }
-    /* get the end of file position */
-    endpos = lseek(fildes, 0, SEEK_END);
-    if (endpos < 0) {
-        DCMQRDB_ERROR("DB_lseek: cannot get end of file position: " << strerror(errno));
-        return endpos;
-    }
-
-    /* return to current position */
-    curpos = lseek(fildes, curpos, SEEK_SET);
-    if (curpos < 0) {
-        DCMQRDB_ERROR("DB_lseek: cannot reset current position: " << strerror(errno));
-        return curpos;
-    }
-
-    /* do the requested seek */
-    pos = lseek(fildes, offset, whence);
-    if (pos < 0) {
-        DCMQRDB_ERROR("DB_lseek: cannot seek to " << offset << ": " << strerror(errno));
-        return pos;
-    }
-
-    /*
-    ** print an alert if we are seeking to far
-    ** what is the limit? We don't expect the index file to be
-    ** larger than 32Mb
-    */
-    const long maxFileSize = 33554432;
-    if (pos > maxFileSize) {
-        DCMQRDB_ERROR("*** DB ALERT: attempt to seek beyond " << maxFileSize << " bytes");
-    }
-
-    /* print an alert if we are seeking beyond the end of file.
-     * ignore when file is empty
-     */
-    if ((endpos > 0) && (pos > endpos)) {
-        DCMQRDB_ERROR("*** DB ALERT: attempt to seek beyond end of file" << OFendl
-            << "              offset=" << offset << " filesize=" << endpos);
-    }
-
-    return pos;
-}
-
-/******************************
- *      Change the StudyDescRecord
- */
-
-OFCondition DcmQueryRetrieveSqlDatabaseHandle::DB_StudyDescChange(StudyDescRecord *pStudyDesc)
-{
-    OFCondition cond = EC_Normal;
-    DB_lseek (handle_ -> pidx, 0L, SEEK_SET) ;
-    if (write (handle_ -> pidx, (char *) pStudyDesc, SIZEOF_STUDYDESC) != SIZEOF_STUDYDESC) cond = DcmQRSqlDatabaseError;
-    DB_lseek (handle_ -> pidx, 0L, SEEK_SET) ;
-    return cond ;
-}
-
 /*******************
  *    Free an element List
  */
@@ -620,7 +536,6 @@ extern "C" int DB_Compare(const void *ve1, const void *ve2)
         return (-1);
 
 }
-
 
 /* ==================================================================== */
 
@@ -1758,22 +1673,24 @@ std::string DcmQueryRetrieveSqlDatabaseHandle::getCMoveSql(
 /********************
 **      Connect to db
 **/
-void DcmQueryRetrieveSqlDatabaseHandle::connectToDb()
+OFCondition DcmQueryRetrieveSqlDatabaseHandle::connect()
 {
     std::string lConn;
     lConn = connectionString_;
 
     DCMQRDB_INFO("Connect To DB");
     connection_ = PQconnectdb(lConn.c_str());
+	return EC_Normal;
 }
 
 /********************
 **      Disconnect from db
 **/
-void DcmQueryRetrieveSqlDatabaseHandle::disconnectFromDb()
+OFCondition DcmQueryRetrieveSqlDatabaseHandle::disconnect()
 {
     DCMQRDB_INFO("Disconnect From DB");
     PQfinish(connection_);
+	return EC_Normal;
 }
 
 /********************
@@ -1959,22 +1876,20 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::startFindRequest(
     lSql = getCFindSql(handle_->findRequestList, handle_->queryLevel);
     DCMQRDB_INFO("After getCFindSql");
 
-    std::string lConn;
-    lConn = connectionString_;
+	if(connection_ == NULL)
+		DCMQRDB_ERROR("not connected to db");
 
-    PGconn *dbconn = PQconnectdb(lConn.c_str());
-    if(PQstatus(dbconn) == CONNECTION_OK) 
+    if(PQstatus(connection_) == CONNECTION_OK) 
     {
-      PQexec(dbconn, CLIENT_ENCODING);
+      PQexec(connection_, CLIENT_ENCODING);
 
-      internalResult = PQexec(dbconn, lSql.c_str());
+      internalResult = PQexec(connection_, lSql.c_str());
       queryPos = 0;
 
       if (PQresultStatus(internalResult) != PGRES_TUPLES_OK)
       {
         PQclear(internalResult);
-        DCMQRDB_ERROR("Error." << PQerrorMessage(dbconn));
-        PQfinish(dbconn);
+        DCMQRDB_ERROR("Error." << PQerrorMessage(connection_));
         return(DcmQRSqlDatabaseError); 
       };
 
@@ -1989,13 +1904,10 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::startFindRequest(
     }
     else
     {
-      DCMQRDB_ERROR(PQerrorMessage(dbconn));
-      PQfinish(dbconn);
+      DCMQRDB_ERROR(PQerrorMessage(connection_));
       MatchFound = OFFalse ;
       return (DcmQRSqlDatabaseError) ;
     }
-    PQfinish(dbconn);
-
 
     /**** If an error occured in Matching function
     ****    return a failed status
@@ -2484,21 +2396,16 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::startMoveRequest(
     /**** Se obtiene el SQL para realizar la búsqueda para hacer el Retrieve ***/
     lSql = getCMoveSql(handle_->findRequestList, handle_->queryLevel);
 
-    std::string lConn;
-    lConn = connectionString_;
-
-    PGconn *dbconn = PQconnectdb(lConn.c_str());
-    if(PQstatus(dbconn) == CONNECTION_OK) 
+    if(PQstatus(connection_) == CONNECTION_OK) 
     {
-      PQexec(dbconn, CLIENT_ENCODING);
+      PQexec(connection_, CLIENT_ENCODING);
 
-      internalResult = PQexec(dbconn, lSql.c_str());
+      internalResult = PQexec(connection_, lSql.c_str());
       queryPos = 0;
       if (PQresultStatus(internalResult) != PGRES_TUPLES_OK)
       {
         PQclear(internalResult);
-        DCMQRDB_ERROR("Error." << PQerrorMessage(dbconn));
-        PQfinish(dbconn);
+        DCMQRDB_ERROR("Error." << PQerrorMessage(connection_));
         return(DcmQRSqlDatabaseError); 
       };
 
@@ -2536,12 +2443,10 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::startMoveRequest(
     }
     else
     {
-      DCMQRDB_ERROR(PQerrorMessage(dbconn));
+      DCMQRDB_ERROR(PQerrorMessage(connection_));
       MatchFound = OFFalse ;
       return (DcmQRSqlDatabaseError) ;
     }
-    PQfinish(dbconn);
-
 
     /**** If an error occured in Matching function
     ****    return a failed status
@@ -2803,270 +2708,264 @@ OFCondition DcmQueryRetrieveSqlDatabaseHandle::storeRequest (
     ssFileSize << fileSize;
 
     // Guarda en base de datos
-    std::string lConn;
-    lConn = connectionString_;
-    PGconn *dbconn = PQconnectdb(lConn.c_str());
-    if(PQstatus(dbconn) == CONNECTION_OK) 
+    if(PQstatus(connection_) == CONNECTION_OK) 
     {
-      DCMQRDB_INFO("Connected to database!");
-      PQexec(dbconn, CLIENT_ENCODING);
-      // iniciamos una transacción
-      PQexec(dbconn, "BEGIN");
+		DCMQRDB_INFO("Connected to database!");
+		PQexec(connection_, CLIENT_ENCODING);
+		// iniciamos una transacción
+		PQexec(connection_, "BEGIN");
 
-      std::stringstream sql;
-      sql << "select storeimage_experimental(";
+		std::stringstream sql;
+		sql << "select storeimage_experimental(";
 
-      dset->findAndGetOFString(DCM_PatientBirthDate, tagValue);
-      if(tagValue != "")
-      {
-        sql << "'" << tagValue << "',";
-      }
-      else
-        sql << "null,";
+		dset->findAndGetOFString(DCM_PatientBirthDate, tagValue);
+		if(tagValue != "")
+		{
+		sql << "'" << tagValue << "',";
+		}
+		else
+		sql << "null,";
 
-      dset->findAndGetOFString(DCM_PatientBirthTime, tagValue);
-      if(tagValue != "")
-      {
-        sql << "'" << tagValue << "',";
-      }
-      else
-        sql << "null,";
+		dset->findAndGetOFString(DCM_PatientBirthTime, tagValue);
+		if(tagValue != "")
+		{
+		sql << "'" << tagValue << "',";
+		}
+		else
+		sql << "null,";
 
-      dset->findAndGetOFString(DCM_PatientSex, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-
-      dset->findAndGetOFString(DCM_PatientName, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_PatientID, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_OtherPatientIDs, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_OtherPatientNames, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_EthnicGroup, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_PatientAge, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_PatientSize, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_PatientWeight, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_Occupation, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_StudyDate, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_StudyTime, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_StudyID, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_StudyDescription, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_InstitutionName, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_Modality, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      // Calling AETitle
-      sql << "'" << getCallingAETitle() << "'," ;
-
-      dset->findAndGetOFString(DCM_NameOfPhysiciansReadingStudy, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_AccessionNumber, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_ReferringPhysiciansName, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_StudyInstanceUID, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_SeriesNumber, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_SeriesInstanceUID, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_SOPInstanceUID, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_SeriesDate, tagValue);
-      if(tagValue.length() > 0)
-        sql <<  "'" << tagValue << "',";
-      else
-        sql <<  "null,";
-      dset->findAndGetOFString(DCM_SeriesTime, tagValue);
-      if(tagValue.length() > 0)
-        sql <<  "'" << tagValue << "',";
-      else
-        sql <<  "null,";
-      dset->findAndGetOFString(DCM_SeriesDescription, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      //BodyPartExamined
-      dset->findAndGetOFString(DCM_BodyPartExamined, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_ProtocolName, tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_OperatorsName, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      dset->findAndGetOFString(DCM_PerformingPhysiciansName, tagValue);
-      escapestring(tagValue);
-      sql <<  "'" << tagValue << "',";
-
-      //Rows
-      dset->findAndGetOFString(DCM_Rows, tagValue);
-        if(tagValue!= "")
-                {
-                sql << tagValue << ",";
-                }
-      else
-                {
-                sql << "" << ",";
-                }
+		dset->findAndGetOFString(DCM_PatientSex, tagValue);
+		sql <<  "'" << tagValue << "',";
 
 
-      //Columns
-      dset->findAndGetOFString(DCM_Columns, tagValue);
-      if(tagValue!= "")
-                {
-                sql <<  tagValue << ",";
-                }
-      else
-                {
-                sql << "" << ",";
-                }
+		dset->findAndGetOFString(DCM_PatientName, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_PatientID, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_OtherPatientIDs, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_OtherPatientNames, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_EthnicGroup, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_PatientAge, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_PatientSize, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_PatientWeight, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_Occupation, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_StudyDate, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_StudyTime, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_StudyID, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_StudyDescription, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_InstitutionName, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_Modality, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		// Calling AETitle
+		sql << "'" << getCallingAETitle() << "'," ;
+
+		dset->findAndGetOFString(DCM_NameOfPhysiciansReadingStudy, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_AccessionNumber, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_ReferringPhysiciansName, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_StudyInstanceUID, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_SeriesNumber, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_SeriesInstanceUID, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_SOPInstanceUID, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_SeriesDate, tagValue);
+		if(tagValue.length() > 0)
+		sql <<  "'" << tagValue << "',";
+		else
+		sql <<  "null,";
+		dset->findAndGetOFString(DCM_SeriesTime, tagValue);
+		if(tagValue.length() > 0)
+		sql <<  "'" << tagValue << "',";
+		else
+		sql <<  "null,";
+		dset->findAndGetOFString(DCM_SeriesDescription, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		//BodyPartExamined
+		dset->findAndGetOFString(DCM_BodyPartExamined, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_ProtocolName, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_OperatorsName, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_PerformingPhysiciansName, tagValue);
+		escapestring(tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		//Rows
+		dset->findAndGetOFString(DCM_Rows, tagValue);
+		if(tagValue!= "")
+				{
+				sql << tagValue << ",";
+				}
+		else
+				{
+				sql << "" << ",";
+				}
 
 
-      //Se agrega el tamaño del archivo
-      sql << "'" << ssFileSize.str() << "',";
+		//Columns
+		dset->findAndGetOFString(DCM_Columns, tagValue);
+		if(tagValue!= "")
+				{
+				sql <<  tagValue << ",";
+				}
+		else
+				{
+				sql << "" << ",";
+				}
 
-      dset->findAndGetOFString(DCM_ContentLabel, tagValue);
-      sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_InstanceNumber, tagValue);
-      sql <<  "'" << tagValue << "',";
+		//Se agrega el tamaño del archivo
+		sql << "'" << ssFileSize.str() << "',";
 
-      dset->findAndGetOFString(DCM_ImageType, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_ContentLabel, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_SOPClassUID, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_InstanceNumber, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_AcquisitionDate, tagValue);
-      if(tagValue.length() > 0)
-        sql <<  "'" << tagValue << "',";
-      else
-        sql <<  "null,";
+		dset->findAndGetOFString(DCM_ImageType, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_AcquisitionTime, tagValue);
-      if(tagValue.length() > 0)
-        sql <<  "'" << tagValue << "',";
-      else
-        sql <<  "null,";
+		dset->findAndGetOFString(DCM_SOPClassUID, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_ContentDate, tagValue);
-      if(tagValue.length() > 0)
-        sql <<  "'" << tagValue << "',";
-      else
-        sql <<  "null,";
-      dset->findAndGetOFString(DCM_ContentTime, tagValue);
-      if(tagValue.length() > 0)
-        sql <<  "'" << tagValue << "',";
-      else
-        sql <<  "null,";
+		dset->findAndGetOFString(DCM_AcquisitionDate, tagValue);
+		if(tagValue.length() > 0)
+		sql <<  "'" << tagValue << "',";
+		else
+		sql <<  "null,";
 
-      dset->findAndGetOFString(DCM_AcquisitionNumber, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_AcquisitionTime, tagValue);
+		if(tagValue.length() > 0)
+		sql <<  "'" << tagValue << "',";
+		else
+		sql <<  "null,";
 
-      dset->findAndGetOFString(DCM_ImagePositionPatient, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_ContentDate, tagValue);
+		if(tagValue.length() > 0)
+		sql <<  "'" << tagValue << "',";
+		else
+		sql <<  "null,";
+		dset->findAndGetOFString(DCM_ContentTime, tagValue);
+		if(tagValue.length() > 0)
+		sql <<  "'" << tagValue << "',";
+		else
+		sql <<  "null,";
 
-      dset->findAndGetOFString(DCM_ImageOrientationPatient, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_AcquisitionNumber, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_FrameOfReferenceUID, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_ImagePositionPatient, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_SliceLocation, tagValue);
-      sql <<  "'" << tagValue << "',";
+		dset->findAndGetOFString(DCM_ImageOrientationPatient, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      dset->findAndGetOFString(DCM_NumberOfFrames, tagValue);
-      sql << "'" << tagValue << "',";
-      sql << "'" << imageFileName << "',";
-      dset->findAndGetOFString(DCM_PatientPosition, tagValue);
-      sql << "'" << tagValue << "'";
-      sql << ");";
+		dset->findAndGetOFString(DCM_FrameOfReferenceUID, tagValue);
+		sql <<  "'" << tagValue << "',";
 
-      // se reemplazan los '' por null
-      int uPos = 0;
-      for( ;(uPos = sql.str().find( "''", uPos )) != std::string::npos; )
-      {
-          sql.str().replace( uPos, 2, "null" );
-          uPos += 4;
-      }
-      DCMQRDB_INFO(sql.str());
-      std::string lString = sql.str();
-      if( (internalResult = PQexec(dbconn, lString.c_str())) == NULL)
-      {
-          DCMQRDB_ERROR(PQerrorMessage(dbconn));
-          status->setStatus(STATUS_STORE_Error_CannotUnderstand);
-          PQfinish(dbconn); 
-          return (DcmQRSqlDatabaseError) ;
-      }
+		dset->findAndGetOFString(DCM_SliceLocation, tagValue);
+		sql <<  "'" << tagValue << "',";
+
+		dset->findAndGetOFString(DCM_NumberOfFrames, tagValue);
+		sql << "'" << tagValue << "',";
+		sql << "'" << imageFileName << "',";
+		dset->findAndGetOFString(DCM_PatientPosition, tagValue);
+		sql << "'" << tagValue << "'";
+		sql << ");";
+
+		// se reemplazan los '' por null
+		int uPos = 0;
+		for( ;(uPos = sql.str().find( "''", uPos )) != std::string::npos; )
+		{
+		  sql.str().replace( uPos, 2, "null" );
+		  uPos += 4;
+		}
+		DCMQRDB_INFO(sql.str());
+		std::string lString = sql.str();
+		if( (internalResult = PQexec(connection_, lString.c_str())) == NULL)
+		{
+		  DCMQRDB_ERROR(PQerrorMessage(connection_));
+		  status->setStatus(STATUS_STORE_Error_CannotUnderstand);
+		  return (DcmQRSqlDatabaseError) ;
+		}
       
-    DBResult = PQgetvalue(internalResult, 0, 0);
-    if( DBResult == "DONE")
-     {
-     DCMQRDB_INFO("DBstatus operations [OK]");
-     }
-     else
-     {
-     DCMQRDB_ERROR("DBstatus operations "<< DBResult);
-     DCMQRDB_ERROR(PQerrorMessage(dbconn));
-     status->setStatus(STATUS_STORE_Error_CannotUnderstand);
-     PQfinish(dbconn);
-     return (DcmQRSqlDatabaseError);
-     }
-      DCMQRDB_INFO("Commit taking place ..");
-      PQexec(dbconn, "COMMIT");
-      PQfinish(dbconn); 
-      return (EC_Normal) ;
+		DBResult = PQgetvalue(internalResult, 0, 0);
+		if( DBResult == "DONE")
+		{
+		  DCMQRDB_INFO("DBstatus operations [OK]");
+		}
+		else
+		{
+		  DCMQRDB_ERROR("DBstatus operations "<< DBResult);
+		  DCMQRDB_ERROR(PQerrorMessage(connection_));
+		  status->setStatus(STATUS_STORE_Error_CannotUnderstand);
+		  return (DcmQRSqlDatabaseError);
+		}
+		DCMQRDB_INFO("Commit taking place ..");
+		PQexec(connection_, "COMMIT");
+		return (EC_Normal) ;
     }
     else
     {
-      DCMQRDB_ERROR(PQerrorMessage(dbconn));
-      status->setStatus(STATUS_STORE_Error_CannotUnderstand);
-      PQfinish(dbconn); 
-      return (DcmQRSqlDatabaseError) ;
+		DCMQRDB_ERROR(PQerrorMessage(connection_));
+		PQexec(connection_, "ROLLBACK");
+		status->setStatus(STATUS_STORE_Error_CannotUnderstand);
+		return (DcmQRSqlDatabaseError) ;
     };
 }
 
@@ -3124,7 +3023,6 @@ DcmQueryRetrieveSqlDatabaseHandle::DcmQueryRetrieveSqlDatabaseHandle(
     sprintf (handle_ -> storageArea,"%s", storageArea);
     // se asigna el connection string
     sprintf (connectionString_, "%s", connectionString);
-    connectToDb();
     return;
 }
 
@@ -3139,7 +3037,6 @@ const char* DcmQueryRetrieveSqlDatabaseHandle::getCallingAETitle()
 
 DcmQueryRetrieveSqlDatabaseHandle::~DcmQueryRetrieveSqlDatabaseHandle()
 {
-    disconnectFromDb();
     if (handle_)
     {
       //closeresult = close( handle_ -> pidx);
@@ -3300,7 +3197,7 @@ DcmQueryRetrieveSqlDatabaseHandleFactory::~DcmQueryRetrieveSqlDatabaseHandleFact
 }
 
 
-DcmQueryRetrieveDatabaseHandle *DcmQueryRetrieveSqlDatabaseHandleFactory::createDBHandle(
+DcmQueryRetrieveSqlDatabaseHandle *DcmQueryRetrieveSqlDatabaseHandleFactory::createDBHandle(
     const char *callingAETitle,
     const char *calledAETitle,
     OFCondition& result) const
