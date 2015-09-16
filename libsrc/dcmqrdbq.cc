@@ -1,7 +1,5 @@
 /*
  *
- *  Copyright (C) 1993-2011, Griensu S.A.
- *
  *  Module:  dcmqrdb
  *
  *  Author:  Leonardo M. Ramé
@@ -55,8 +53,6 @@ bool estado(std::string AKey);
 std::string getFingerPrint();
 OFCmdUnsignedInt    opt_quality = 90;                 /* default: 90% JPEG quality */
 E_SubSampling       opt_sampling = ESS_422;           /* default: 4:2:2 sub-sampling */
-
-/*Nicolas*/
 
 makeOFConditionConst(DcmQRSqlDatabaseError, OFM_dcmqrdb, 1, OF_error, "DcmQR Sql Database Error");
 const OFCondition SqlDatabaseError(DcmQRSqlDatabaseError); 

@@ -192,7 +192,7 @@ void DcmQueryRetrieveStoreContext::writeToFile(
     if (dataset->canWriteXfer(opt_oxfer))
     {
       DCMQRDB_INFO("Output transfer syntax " << opt_oxferSyn.getXferName() << " can be written");
-      DCMQRDB_INFO("creating output file " << fname);
+      DCMQRDB_INFO("Saving output file " << fname);
 
       ProcessDataset(ff);
 
@@ -249,6 +249,7 @@ void DcmQueryRetrieveStoreContext::checkRequestAgainstDataset(
 // TODO: replace for javascript/lua scripts
 void DcmQueryRetrieveStoreContext::ProcessDataset(DcmFileFormat * ff)
 {
+	/*
     DCMQRDB_INFO("Opening libpreprocess.so...");
     void* lhandle = dlopen("./libpreprocess.so", RTLD_NOW);
 
@@ -272,6 +273,7 @@ void DcmQueryRetrieveStoreContext::ProcessDataset(DcmFileFormat * ff)
       error = dlerror();
       DCMQRDB_INFO("Cannot open open libpreprocess.so (" << error);
     }
+	*/
 }
 
 void DcmQueryRetrieveStoreContext::callbackHandler(

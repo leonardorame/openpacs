@@ -688,12 +688,35 @@ main(int argc, char *argv[])
     DcmQueryRetrieveSCP scp(config, options, factory);
     scp.setDatabaseFlags(opt_checkFindIdentifier, opt_checkMoveIdentifier);
 
+		/* Create a database handle for this association */
+        dbHandle = factory_.createDBHandle(
+          assoc->params->DULparams.callingAPTitle,
+          assoc->params->DULparams.calledAPTitle, cond);
+        if (cond.bad())
+        {
+          DCMQRDB_ERROR("waitForAssociation: cannot create DB Handle");
+          return cond;
+        }
+
+		// connect to database
+		cond = dbHandle->connect();
+		if(cond.bad())
+		{
+          DCMQRDB_ERROR("waitForAssociation: cannot connect to the database.");
+		  delete dbHandle;
+          return cond;
+		}
+
     /* loop waiting for associations */
     while (cond.good())
     {
       cond = scp.waitForAssociation(options.net_);
       if (!options.singleProcess_) scp.cleanChildren();  /* clean up any child processes */
     }
+
+	// release DB handle
+	dbHandle->disconnect();
+	delete dbHandle;
 
     cond = ASC_dropNetwork(&options.net_);
     if (cond.bad()) {

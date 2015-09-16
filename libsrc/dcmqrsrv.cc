@@ -914,27 +914,6 @@ OFCondition DcmQueryRetrieveSCP::waitForAssociation(T_ASC_Network * theNet)
 
     if (! go_cleanup)
     {
-		/* Create a database handle for this association */
-		if(dbHandle != NULL)
-			DCMQRDB_INFO("dbhandle already created this shouldn't happen.");
-
-        dbHandle = factory_.createDBHandle(
-          assoc->params->DULparams.callingAPTitle,
-          assoc->params->DULparams.calledAPTitle, cond);
-        if (cond.bad())
-        {
-          DCMQRDB_ERROR("waitForAssociation: cannot create DB Handle");
-          return cond;
-        }
-
-		// connect to database
-		cond = dbHandle->connect();
-		if(cond.bad())
-		{
-          DCMQRDB_ERROR("waitForAssociation: cannot connect to the database.");
-		  delete dbHandle;
-          return cond;
-		}
 
         time_t t = time(NULL);
         DCMQRDB_INFO("Association Received (" << assoc->params->DULparams.callingPresentationAddress
@@ -1073,9 +1052,6 @@ OFCondition DcmQueryRetrieveSCP::waitForAssociation(T_ASC_Network * theNet)
     }
 
     if (oldcond == ASC_SHUTDOWNAPPLICATION) cond = oldcond; /* abort flag is reported to top-level wait loop */
-	// release DB handle
-	dbHandle->disconnect();
-	delete dbHandle;
     return cond;
 }
 
